@@ -67,6 +67,21 @@ const envVarsSchema = Joi.object()
     GITHUB_CLIENT_SECRET: Joi.string()
       .allow('')
       .default(''),
+    STRIPE_SECRET_KEY: Joi.string()
+      .required()
+      .description('Stripe secret key'),
+    STRIPE_PUBLISHABLE_KEY: Joi.string()
+      .required()
+      .description('Stripe publishable key'),
+    STRIPE_WEBHOOK_SECRET: Joi.string()
+      .required()
+      .description('Stripe webhook secret'),
+    REDIS_URL: Joi.string()
+      .default('redis://localhost:6379'),
+    ADMIN_EMAIL: Joi.string()
+      .email()
+      .required()
+      .description('Admin email for alerts'),
   })
   .unknown();
 
@@ -122,5 +137,16 @@ module.exports = {
       clientId: envVars.GITHUB_CLIENT_ID,
       clientSecret: envVars.GITHUB_CLIENT_SECRET,
     },
+  },
+  stripe: {
+    secretKey: envVars.STRIPE_SECRET_KEY,
+    publishableKey: envVars.STRIPE_PUBLISHABLE_KEY,
+    webhookSecret: envVars.STRIPE_WEBHOOK_SECRET,
+  },
+  redis: {
+    url: envVars.REDIS_URL,
+  },
+  admin: {
+    email: envVars.ADMIN_EMAIL,
   },
 };
