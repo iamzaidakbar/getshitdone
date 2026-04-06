@@ -14,6 +14,9 @@ const config = require('./config');
 const { errorHandler, logger } = require('./utils');
 const errorHandlerMiddleware = require('./middlewares');
 
+// Initialize Bull queue for payment webhook processing
+const { paymentQueue } = require('./modules/payments/worker');
+
 const app = express();
 
 // Trust proxy
@@ -70,5 +73,11 @@ app.use((req, res) => {
 
 // Global error handler (must be last)
 app.use(errorHandlerMiddleware.errorHandler);
+
+// Graceful shutdown: close payment queue
+app.on('close', async () => {
+  logger.info('Closing payment queue...');
+  await paymentQueue.close();
+});
 
 module.exports = app;
