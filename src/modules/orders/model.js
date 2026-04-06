@@ -98,6 +98,29 @@ const orderSchema = new mongoose.Schema(
       ref: 'Coupon',
     },
     notes: String,
+    // ===== STRIPE PAYMENT FIELDS (PHASE 5) =====
+    // Stripe PaymentIntent ID for this order
+    paymentIntentId: String,
+    // Payment processing status (separate from order.status)
+    paymentStatus: {
+      type: String,
+      enum: ['pending', 'succeeded', 'failed', 'refunded'],
+      default: 'pending',
+      index: true,
+    },
+    // Amount refunded (in cents) - 0 if not refunded
+    refundedAmount: {
+      type: Number,
+      default: 0,
+    },
+    // Stripe Refund ID if order was refunded
+    refundIntentId: String,
+    // Array of Stripe webhook event IDs related to this order
+    webhookEventIds: [
+      {
+        type: String,
+      },
+    ],
   },
   {
     timestamps: true,
@@ -111,6 +134,8 @@ orderSchema.plugin(mongoosePaginate);
 orderSchema.index({ user: 1, status: 1 });
 orderSchema.index({ orderNumber: 1 });
 orderSchema.index({ 'payment.status': 1 });
+orderSchema.index({ paymentIntentId: 1 });
+orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);

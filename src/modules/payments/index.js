@@ -1,10 +1,12 @@
 /**
  * Payments Module
- * Handles payment processing and coupons/discounts
+ * Handles payment processing, webhooks, and refunds
  */
 
-const Coupon = require('./model');
+const { Coupon, WebhookEvent, PaymentLog } = require('./model');
 
 module.exports = {
-  model: Coupon,
+  Coupon,
+  WebhookEvent,
+  PaymentLog,
 };
