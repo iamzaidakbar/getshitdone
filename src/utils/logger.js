@@ -11,9 +11,72 @@ const config = require('../config');
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
 
-// Custom log format
-const logFormat = printf(({ level, message, timestamp, stack }) => {
-  return `${timestamp} [${level}] ${stack || message}`;
+/**
+ * Redact sensitive information from logs
+ * Prevents passwords, tokens, and PII from being logged
+ */
+const redactSensitive = (obj) => {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  const sensitiveKeys = [
+    'password',
+    'pwd',
+    'pass',
+    'secret',
+    'token',
+    'accessToken',
+    'refreshToken',
+    'apiKey',
+    'api_key',
+    'authorization',
+    'bearer',
+    'creditCard',
+    'cardNumber',
+    'cvv',
+    'ssn',
+    'socialSecurityNumber',
+    'privateKey',
+    'secretKey',
+    'resetToken',
+    'verificationCode',
+    'otp',
+    'stripeKey',
+    'awsSecret',
+  ];
+
+  const redacted = JSON.parse(JSON.stringify(obj));
+
+  const redactKeys = (obj, keys) => {
+    if (typeof obj !== 'object' || obj === null) return;
+
+    for (const key in obj) {
+      const lowerKey = key.toLowerCase();
+      if (keys.some((k) => lowerKey.includes(k.toLowerCase()))) {
+        obj[key] = '[REDACTED]';
+      } else if (typeof obj[key] === 'object') {
+        redactKeys(obj[key], keys);
+      }
+    }
+  };
+
+  redactKeys(redacted, sensitiveKeys);
+  return redacted;
+};
+
+// Custom log format with sensitive data redaction
+const logFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
+  // Redact sensitive data from metadata
+  const redactedMeta = redactSensitive(meta);
+  const redactedMessage = typeof message === 'object' ? redactSensitive(message) : message;
+
+  let metaStr = '';
+  if (Object.keys(redactedMeta).length > 0) {
+    metaStr = ' ' + JSON.stringify(redactedMeta);
+  }
+
+  return `${timestamp} [${level}] ${stack || redactedMessage}${metaStr}`;
 });
 
 // Create logs directory if it doesn't exist

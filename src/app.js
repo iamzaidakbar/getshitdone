@@ -1,18 +1,17 @@
 /**
  * Express App Configuration
  * Sets up middleware, routes, and global error handling
+ * Includes comprehensive security hardening (Phase 7)
  */
 
 const express = require('express');
-const helmet = require('helmet');
-const cors = require('cors');
 const compression = require('compression');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 
 const config = require('./config');
 const { errorHandler, logger } = require('./utils');
 const errorHandlerMiddleware = require('./middlewares');
+const security = require('./utils/security');
 
 // Initialize Bull queue for payment webhook processing
 const { paymentQueue } = require('./modules/payments/worker');
@@ -22,51 +21,77 @@ const { initializeCacheInvalidation } = require('./utils/cacheInvalidation');
 
 const app = express();
 
-// Trust proxy
+// Trust proxy (for rate limiting and IP detection behind reverse proxy)
 app.set('trust proxy', 1);
 
-// Security middleware
-app.use(helmet());
+// ============================================================================
+// SECURITY MIDDLEWARE (Phase 7)
+// ============================================================================
 
-// CORS
-app.use(cors({
-  origin: config.cors.origin,
-  credentials: true,
-}));
+// 1. Helmet - HTTP security headers
+app.use(security.helmetConfig());
 
-// Request logging with Morgan
+// 2. CORS - Explicit origin allowlist
+app.use(security.corsConfig());
+
+// 3. Request logging with Morgan
 const morganFormat = config.isDev ? 'dev' : 'combined';
-app.use(morgan(morganFormat, {
-  stream: {
-    write: (message) => logger.info(message.trim()),
-  },
-}));
+app.use(
+  morgan(morganFormat, {
+    skip: (req) => req.path === '/health', // Don't log health checks
+    stream: {
+      write: (message) => logger.info(message.trim()),
+    },
+  })
+);
 
-// Body parser middleware
+// 4. Body parser middleware with size limits
 app.use(express.json({ limit: '16kb' }));
 app.use(express.urlencoded({ limit: '16kb', extended: true }));
 
-// Compression middleware
+// 5. Compression middleware
 app.use(compression());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: config.rateLimit.windowMs,
-  max: config.rateLimit.maxRequests,
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use('/api/', limiter);
+// 6. NoSQL injection prevention (MongoDB operator sanitization)
+app.use(security.mongoSanitizer);
+
+// 7. XSS attack prevention (input sanitization)
+app.use(security.xssSanitizer);
+
+// 8. HTTP Parameter Pollution prevention
+app.use(security.hppProtection);
+
+// 9. Global rate limiting (100 req/15min per IP)
+app.use('/api/', security.globalLimiter);
+
+// 10. Security headers logging
+app.use(security.securityHeadersLogger);
 
 // Initialize cache invalidation
 initializeCacheInvalidation();
 
-// Health check endpoint
+// ============================================================================
+// ROUTES
+// ============================================================================
+
+// Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Apply specific rate limiters to sensitive auth endpoints
+// (global limiter already applies to all /api/* routes)
+app.use('/api/v1/auth/login', security.authLimiter);
+app.use('/api/v1/auth/register', security.authLimiter);
+app.use('/api/v1/auth/password-reset', security.sensitiveOperationLimiter);
+app.use('/api/v1/auth/refresh', security.authLimiter);
+
 // API Routes
 app.use('/api', require('./routes'));
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
 
 // 404 handler
 app.use((req, res) => {
@@ -80,7 +105,11 @@ app.use((req, res) => {
 // Global error handler (must be last)
 app.use(errorHandlerMiddleware.errorHandler);
 
-// Graceful shutdown: close payment queue
+// ============================================================================
+// GRACEFUL SHUTDOWN
+// ============================================================================
+
+// Close payment queue on app shutdown
 app.on('close', async () => {
   logger.info('Closing payment queue...');
   await paymentQueue.close();
