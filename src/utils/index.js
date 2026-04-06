@@ -9,4 +9,5 @@ module.exports = {
   logger: require('./logger'),
   jwt: require('./jwt'),
   email: require('./email'),
+  stripe: require('./stripe'),
 };
