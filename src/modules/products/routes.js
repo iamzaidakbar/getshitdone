@@ -6,6 +6,7 @@
 const express = require('express');
 const { asyncHandler } = require('../../utils');
 const { requireAuth, requireRole } = require('../../middlewares/auth');
+const { cacheGet } = require('../../middlewares/cacheMiddleware');
 const productController = require('./controller');
 
 const router = express.Router();
@@ -24,20 +25,45 @@ router.post(
 /**
  * GET /api/v1/products
  * Get all products with filters and pagination
+ * Cached for 5 minutes
  */
-router.get('/', asyncHandler(productController.getAllProducts));
+router.get(
+  '/',
+  cacheGet((req) => {
+    // Key includes query params for proper cache separation
+    const page = req.query.page || 1;
+    const limit = req.query.limit || 20;
+    const sort = req.query.sort || 'createdAt';
+    return `products:list:${page}:${limit}:${sort}`;
+  }, 300),
+  asyncHandler(productController.getAllProducts)
+);
 
 /**
  * GET /api/v1/products/search/faceted
  * Get products with faceted filtering
+ * Cached for 5 minutes
  */
-router.get('/search/faceted', asyncHandler(productController.getProductsWithFacets));
+router.get(
+  '/search/faceted',
+  cacheGet((req) => {
+    // Include all query params in cache key for faceted search
+    const params = Object.keys(req.query).sort().map(k => `${k}=${req.query[k]}`).join('&');
+    return `products:faceted:${params || 'all'}`;
+  }, 300),
+  asyncHandler(productController.getProductsWithFacets)
+);
 
 /**
  * GET /api/v1/products/:id
  * Get single product by ID or slug
+ * Cached for 5 minutes
  */
-router.get('/:id', asyncHandler(productController.getProductById));
+router.get(
+  '/:id',
+  cacheGet((req) => `product:${req.params.id}`, 300),
+  asyncHandler(productController.getProductById)
+);
 
 /**
  * PATCH /api/v1/products/:id

@@ -65,4 +65,39 @@ categorySchema.virtual('path').get(async function () {
   return [...parentPath, { id: this._id, name: this.name }];
 });
 
+// Cache Invalidation Hooks
+// Emit events to invalidate cache when category changes
+const { eventEmitter, EVENTS } = require('../../utils/events');
+
+categorySchema.post('save', function (doc) {
+  // Invalidate single category cache
+  eventEmitter.emit(EVENTS.CACHE_INVALIDATE_CATEGORY, {
+    categoryId: doc._id.toString(),
+    action: 'save',
+  });
+
+  // Invalidate entire category tree cache
+  eventEmitter.emit(EVENTS.CACHE_INVALIDATE_CATEGORY_TREE);
+});
+
+categorySchema.post('findOneAndDelete', function (doc) {
+  if (doc) {
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_CATEGORY, {
+      categoryId: doc._id.toString(),
+      action: 'delete',
+    });
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_CATEGORY_TREE);
+  }
+});
+
+categorySchema.post('deleteOne', function (doc) {
+  if (doc) {
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_CATEGORY, {
+      categoryId: doc._id.toString(),
+      action: 'delete',
+    });
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_CATEGORY_TREE);
+  }
+});
+
 module.exports = mongoose.model('Category', categorySchema);

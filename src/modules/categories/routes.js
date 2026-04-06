@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { asyncHandler } = require('../../utils');
 const { requireAuth, requireRole } = require('../../middlewares/auth');
+const { cacheGet } = require('../../middlewares/cacheMiddleware');
 const categoriesController = require('./controller');
 
 /**
@@ -30,19 +31,33 @@ router.post(
  * GET /api/v1/categories
  * Get all categories with filters
  * Auth: Public
+ * Cached for 5 minutes
  * Query: {
  *   parentId?: string (filter by parent category),
  *   includeChildren?: boolean (include all nested, default false for root only)
  * }
  */
-router.get('/', asyncHandler(categoriesController.getAllCategories));
+router.get(
+  '/',
+  cacheGet((req) => {
+    const parentId = req.query.parentId || 'root';
+    const includeChildren = req.query.includeChildren || 'false';
+    return `categories:list:${parentId}:${includeChildren}`;
+  }, 300),
+  asyncHandler(categoriesController.getAllCategories)
+);
 
 /**
  * GET /api/v1/categories/:id
  * Get category by ID or slug with breadcrumb and children
  * Auth: Public
+ * Cached for 5 minutes
  */
-router.get('/:id', asyncHandler(categoriesController.getCategoryById));
+router.get(
+  '/:id',
+  cacheGet((req) => `category:${req.params.id}`, 300),
+  asyncHandler(categoriesController.getCategoryById)
+);
 
 /**
  * PATCH /api/v1/categories/:id

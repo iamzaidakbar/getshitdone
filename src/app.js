@@ -17,6 +17,9 @@ const errorHandlerMiddleware = require('./middlewares');
 // Initialize Bull queue for payment webhook processing
 const { paymentQueue } = require('./modules/payments/worker');
 
+// Initialize cache invalidation listeners
+const { initializeCacheInvalidation } = require('./utils/cacheInvalidation');
+
 const app = express();
 
 // Trust proxy
@@ -53,6 +56,9 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', limiter);
+
+// Initialize cache invalidation
+initializeCacheInvalidation();
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -7,6 +7,7 @@ const config = require('./config');
 const connectDB = require('./config/database');
 const app = require('./app');
 const { logger } = require('./utils');
+const { initializeRedis } = require('./utils/redis-client');
 
 let server;
 
@@ -20,6 +21,9 @@ process.on('uncaughtException', (err) => {
 const startServer = async () => {
   try {
     await connectDB();
+    
+    // Initialize Redis for caching (non-blocking - app continues if unavailable)
+    await initializeRedis();
 
     server = app.listen(config.port, () => {
       logger.info(`🚀 Server running on port ${config.port} in ${config.env} mode`);

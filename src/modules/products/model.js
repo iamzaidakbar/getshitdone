@@ -113,4 +113,42 @@ productSchema.virtual('discountPercentage').get(function () {
 // Ensure virtuals are included in toJSON
 productSchema.set('toJSON', { virtuals: true });
 
+// Cache Invalidation Hooks
+// Emit events to invalidate cache when product changes
+const { eventEmitter, EVENTS } = require('../../utils/events');
+
+productSchema.post('save', function (doc) {
+  // Invalidate single product cache
+  eventEmitter.emit(EVENTS.CACHE_INVALIDATE_PRODUCT, {
+    productId: doc._id.toString(),
+    action: 'save',
+  });
+
+  // Invalidate product listings cache (since sort/filter may change)
+  eventEmitter.emit(EVENTS.CACHE_INVALIDATE_PRODUCT_LIST);
+});
+
+productSchema.post('findOneAndDelete', function (doc) {
+  if (doc) {
+    // Invalidate single product cache
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_PRODUCT, {
+      productId: doc._id.toString(),
+      action: 'delete',
+    });
+
+    // Invalidate product listings cache
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_PRODUCT_LIST);
+  }
+});
+
+productSchema.post('deleteOne', function (doc) {
+  if (doc) {
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_PRODUCT, {
+      productId: doc._id.toString(),
+      action: 'delete',
+    });
+    eventEmitter.emit(EVENTS.CACHE_INVALIDATE_PRODUCT_LIST);
+  }
+});
+
 module.exports = mongoose.model('Product', productSchema);

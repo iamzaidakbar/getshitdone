@@ -17,6 +17,7 @@ const categoriesRoutes = require('../modules/categories/routes');
 const cartRoutes = require('../modules/cart/routes');
 const ordersRoutes = require('../modules/orders/routes');
 const paymentsRoutes = require('../modules/payments/routes');
+const queuesRoutes = require('../modules/queues/routes');
 
 // Register routes
 router.use('/v1/auth', authRoutes);
@@ -25,5 +26,6 @@ router.use('/v1/categories', categoriesRoutes);
 router.use('/v1/cart', cartRoutes);
 router.use('/v1/orders', ordersRoutes);
 router.use('/v1/payments', paymentsRoutes);
+router.use('/admin/queues', queuesRoutes);
 
 module.exports = router;
