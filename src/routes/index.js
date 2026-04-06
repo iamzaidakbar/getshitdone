@@ -12,14 +12,16 @@ const router = express.Router();
 
 // Import module routes
 const authRoutes = require('../modules/auth/routes');
+const productsRoutes = require('../modules/products/routes');
+const categoriesRoutes = require('../modules/categories/routes');
+const cartRoutes = require('../modules/cart/routes');
+const ordersRoutes = require('../modules/orders/routes');
 
 // Register routes
 router.use('/v1/auth', authRoutes);
-
-// TODO: Register additional module routes
-// const userRoutes = require('./users');
-// const productRoutes = require('./products');
-// router.use('/v1/users', userRoutes);
-// router.use('/v1/products', productRoutes);
+router.use('/v1/products', productsRoutes);
+router.use('/v1/categories', categoriesRoutes);
+router.use('/v1/cart', cartRoutes);
+router.use('/v1/orders', ordersRoutes);
 
 module.exports = router;

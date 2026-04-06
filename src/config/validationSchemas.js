@@ -107,11 +107,42 @@ const updateProductSchema = Joi.object({
 }).min(1);
 
 // ============================================
+// CATEGORY VALIDATION SCHEMAS
+// ============================================
+
+const createCategorySchema = Joi.object({
+  name: Joi.string()
+    .required()
+    .trim()
+    .messages({
+      'any.required': 'Category name is required',
+    }),
+  description: Joi.string().trim(),
+  parentId: Joi.string()
+    .pattern(/^[0-9a-f]{24}$/)
+    .allow(null)
+    .messages({
+      'string.pattern.base': 'Invalid parent category ID',
+    }),
+});
+
+const updateCategorySchema = Joi.object({
+  name: Joi.string().trim(),
+  description: Joi.string().trim(),
+  parentId: Joi.string()
+    .pattern(/^[0-9a-f]{24}$/)
+    .allow(null)
+    .messages({
+      'string.pattern.base': 'Invalid parent category ID',
+    }),
+}).min(1);
+
+// ============================================
 // CART VALIDATION SCHEMAS
 // ============================================
 
 const addToCartSchema = Joi.object({
-  product: Joi.string()
+  productId: Joi.string()
     .required()
     .pattern(/^[0-9a-f]{24}$/)
     .messages({
@@ -141,35 +172,45 @@ const updateCartItemSchema = Joi.object({
 // ============================================
 
 const createOrderSchema = Joi.object({
-  items: Joi.array()
-    .items(
-      Joi.object({
-        product: Joi.string().required().pattern(/^[0-9a-f]{24}$/),
-        quantity: Joi.number().required().min(1),
-        price: Joi.number().required().min(0),
-      })
-    )
-    .required()
-    .min(1),
   shippingAddress: Joi.object({
     street: Joi.string().required(),
     city: Joi.string().required(),
     state: Joi.string().required(),
-    zipCode: Joi.string().required(),
+    zip: Joi.string().required(),
     country: Joi.string().required(),
-    phone: Joi.string(),
-  }).required(),
+  })
+    .required()
+    .messages({
+      'any.required': 'Shipping address is required',
+    }),
+  billingAddress: Joi.object({
+    street: Joi.string().required(),
+    city: Joi.string().required(),
+    state: Joi.string().required(),
+    zip: Joi.string().required(),
+    country: Joi.string().required(),
+  }),
   paymentMethod: Joi.string()
-    .valid('credit_card', 'debit_card', 'paypal', 'stripe', 'bank_transfer')
-    .required(),
+    .valid('card', 'paypal', 'bank_transfer')
+    .required()
+    .messages({
+      'any.required': 'Payment method is required',
+    }),
   couponCode: Joi.string().uppercase(),
 });
 
 const updateOrderStatusSchema = Joi.object({
   status: Joi.string()
-    .valid('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded')
-    .required(),
-  note: Joi.string(),
+    .valid('confirmed', 'processing', 'shipped', 'delivered', 'cancelled')
+    .required()
+    .messages({
+      'any.required': 'Status is required',
+    }),
+  notes: Joi.string(),
+});
+
+const cancelOrderSchema = Joi.object({
+  reason: Joi.string().trim(),
 });
 
 // ============================================
@@ -339,6 +380,10 @@ module.exports = {
   createProductSchema,
   updateProductSchema,
 
+  // Category schemas
+  createCategorySchema,
+  updateCategorySchema,
+
   // Cart schemas
   addToCartSchema,
   updateCartItemSchema,
@@ -346,6 +391,7 @@ module.exports = {
   // Order schemas
   createOrderSchema,
   updateOrderStatusSchema,
+  cancelOrderSchema,
 
   // Review schemas
   createReviewSchema,
